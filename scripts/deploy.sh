@@ -1,8 +1,12 @@
 #!/bin/bash
 
+rtfblog_proj="../rtfblog"
+
 killall rtfblog
+pushd $rtfblog_proj
 rm src/version.go
 make all
+popd
 
 suffix="-staging"
 goose_env="staging"
@@ -13,11 +17,11 @@ if [ "$1" == "prod" ]; then
 fi
 
 package=./package
-cp -r build $package
+cp -r $rtfblog_proj/build $package
 rm $package/server.conf
 rm $package/server.log
 cp $GOPATH/bin/goose $package
-cp -r ./db $package
+cp -r $rtfblog_proj/db $package
 cp ./stuff/images/* $package/static/
 cp ./testdata/rtfblog-dump.sql $package/rtfblog-dump.sql
 tar czvf package.tar.gz ./package
