@@ -23,6 +23,33 @@ Options:
   --version     Show version.`
 )
 
+var (
+	logger *bark.Logger
+)
+
+func migrateToLatest(db, env string) {
+	dbconf, err := goose.NewDBConf(db, env, "")
+	logger.LogIf(err)
+	target, err := goose.GetMostRecentDBVersion(dbconf.MigrationsDir)
+	logger.LogIf(err)
+	err = goose.RunMigrations(dbconf, dbconf.MigrationsDir, target)
+	logger.LogIf(err)
+}
+
+func migrateToTarget(db, env string, target int64) {
+	dbconf, err := goose.NewDBConf(db, env, "")
+	logger.LogIf(err)
+	err = goose.RunMigrations(dbconf, dbconf.MigrationsDir, target)
+	logger.LogIf(err)
+}
+
+func copyData(source *goose.DBConf, db, env string) {
+	// TODO: write an equivalent of this:
+	//
+	// pg_dump rtfblog -a > dump.sql
+	// psql rtfblog-staging < dump.sql
+}
+
 func main() {
 	args, err := docopt.Parse(usage, nil, true, "0.1", false)
 	if err != nil {
@@ -32,17 +59,17 @@ func main() {
 	fmt.Printf("db=%q, env=%q\n", args["--db"], args["--env"])
 	db := args["--db"].(string)
 	env := args["--env"].(string)
-	/*
-		TODO: if env=staging, do the following:
-		1. migrate staging DB *down* to match prod DB
-		2. copy over all data from prod DB to staging DB
-		3. migrate staging DB up to latest
-	*/
-	logger := bark.Create()
-	dbconf, err := goose.NewDBConf(db, env, "")
-	logger.LogIf(err)
-	target, err := goose.GetMostRecentDBVersion(dbconf.MigrationsDir)
-	logger.LogIf(err)
-	err = goose.RunMigrations(dbconf, dbconf.MigrationsDir, target)
-	logger.LogIf(err)
+	logger = bark.Create()
+	if env == "production" {
+		migrateToLatest(db, env)
+		return
+	} else {
+		prodConf, err := goose.NewDBConf(db, "production", "")
+		logger.LogIf(err)
+		target, err := goose.GetDBVersion(prodConf)
+		logger.LogIf(err)
+		migrateToTarget(db, env, target)
+		copyData(prodConf, db, env)
+		migrateToLatest(db, env)
+	}
 }
