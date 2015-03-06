@@ -5,6 +5,7 @@ import (
 
 	"bitbucket.org/liamstask/goose/lib/goose"
 	"github.com/docopt/docopt-go"
+	"github.com/jinzhu/gorm"
 	"github.com/rtfb/bark"
 )
 
@@ -27,6 +28,14 @@ var (
 	logger *bark.Logger
 )
 
+func L10n(x string, y int) string {
+	return ""
+}
+
+func Capitalize(s string) string {
+	return ""
+}
+
 func migrateToLatest(db, env string) {
 	dbconf, err := goose.NewDBConf(db, env, "")
 	logger.LogIf(err)
@@ -44,6 +53,17 @@ func migrateToTarget(db, env string, target int64) {
 }
 
 func copyData(source *goose.DBConf, db, env string) {
+	targetConf, err := goose.NewDBConf(db, env, "")
+	logger.LogIf(err)
+	tDB, err := gorm.Open(targetConf.Driver.Name, targetConf.Driver.OpenStr)
+	logger.LogIf(err)
+	tDB.SingularTable(true)
+	logger.LogIf(tDB.Delete(EntryTable{}).Error)
+	logger.LogIf(tDB.Delete(TagMap{}).Error)
+	logger.LogIf(tDB.Delete(Tag{}).Error)
+	logger.LogIf(tDB.Delete(CommentTable{}).Error)
+	logger.LogIf(tDB.Delete(CommenterTable{}).Error)
+	logger.LogIf(tDB.Delete(Author{}).Error)
 	// TODO: write an equivalent of this:
 	//
 	// pg_dump rtfblog -a > dump.sql
