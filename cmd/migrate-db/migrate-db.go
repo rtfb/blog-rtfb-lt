@@ -64,10 +64,46 @@ func copyData(source *goose.DBConf, db, env string) {
 	logger.LogIf(tDB.Delete(CommentTable{}).Error)
 	logger.LogIf(tDB.Delete(CommenterTable{}).Error)
 	logger.LogIf(tDB.Delete(Author{}).Error)
-	// TODO: write an equivalent of this:
-	//
-	// pg_dump rtfblog -a > dump.sql
-	// psql rtfblog-staging < dump.sql
+	sDB, err := gorm.Open(source.Driver.Name, source.Driver.OpenStr)
+	sDB.SingularTable(true)
+	logger.LogIf(err)
+	// author
+	var authors []Author
+	logger.LogIf(sDB.Find(&authors).Error)
+	for _, a := range authors {
+		logger.LogIf(tDB.Create(&a).Error)
+	}
+	// post
+	var posts []EntryTable
+	logger.LogIf(sDB.Find(&posts).Error)
+	for _, p := range posts {
+		logger.LogIf(tDB.Create(&p).Error)
+	}
+	// commenter
+	var commenters []CommenterTable
+	logger.LogIf(sDB.Find(&commenters).Error)
+	for _, c := range commenters {
+		logger.LogIf(tDB.Create(&c).Error)
+	}
+	// comment
+	var comments []CommentTable
+	logger.LogIf(sDB.Find(&comments).Error)
+	for _, c := range comments {
+		logger.LogIf(tDB.Create(&c).Error)
+	}
+	// tag
+	var tags []Tag
+	logger.LogIf(sDB.Find(&tags).Error)
+	for _, t := range tags {
+		logger.LogIf(tDB.Create(&t).Error)
+	}
+	// tagmap
+	var tagmaps []TagMap
+	logger.LogIf(sDB.Find(&tagmaps).Error)
+	for _, tm := range tagmaps {
+		logger.LogIf(tDB.Create(&tm).Error)
+	}
+	tDB.Close()
 }
 
 func main() {
