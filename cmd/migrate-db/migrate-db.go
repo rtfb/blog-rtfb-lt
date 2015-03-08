@@ -13,15 +13,16 @@ const (
 	usage = `migrate-db. A tool to migrate production and staging DBs for rtfblog.
 
 Usage:
-  migrate-db [--db=<db>] [--env=<env>]
+  migrate-db [--db=<db>] [--env=<env>] [--srcenv=<env>]
   migrate-db -h | --help
   migrate-db --version
 
 Options:
-  --db=<dir>    Path to DB specifier dir for goose [default: db].
-  --env=<env>   Environment to migrate [default: staging].
-  -h --help     Show this screen.
-  --version     Show version.`
+  --db=<dir>     Path to DB specifier dir for goose [default: db].
+  --env=<env>    Environment to migrate [default: staging].
+  --srcenv=<env> Environment to copy data from [default: production].
+  -h --help      Show this screen.
+  --version      Show version.`
 )
 
 var (
@@ -115,12 +116,13 @@ func main() {
 	fmt.Printf("db=%q, env=%q\n", args["--db"], args["--env"])
 	db := args["--db"].(string)
 	env := args["--env"].(string)
+	srcenv := args["--srcenv"].(string)
 	logger = bark.Create()
 	if env == "production" {
 		migrateToLatest(db, env)
 		return
 	} else {
-		prodConf, err := goose.NewDBConf(db, "production", "")
+		prodConf, err := goose.NewDBConf(db, srcenv, "")
 		logger.LogIf(err)
 		target, err := goose.GetDBVersion(prodConf)
 		logger.LogIf(err)
