@@ -1,7 +1,9 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
+	"strings"
 
 	"bitbucket.org/liamstask/goose/lib/goose"
 	"github.com/docopt/docopt-go"
@@ -53,6 +55,41 @@ func migrateToTarget(db, env string, target int64) {
 	logger.LogIf(err)
 }
 
+func makePlaceholders(num int) string {
+	items := make([]string, 0)
+	for i := 0; i < num; i++ {
+		items = append(items, fmt.Sprintf("$%d", i+1))
+	}
+	return strings.Join(items, ", ")
+}
+
+func copyTable(src, dst *sql.DB, table string) error {
+	fmt.Printf("Copying table %v...", table)
+	rows, err := src.Query("select * from " + table)
+	if err != nil {
+		return err
+	}
+	columns, err := rows.Columns()
+	if err != nil {
+		return err
+	}
+	for rows.Next() {
+		ss := make([]interface{}, 0)
+		for i := 0; i < len(columns); i++ {
+			var x interface{}
+			ss = append(ss, &x)
+		}
+		rows.Scan(ss...)
+		sql := fmt.Sprintf("insert into %s (%s) values (%s)", table,
+			strings.Join(columns, ", "), makePlaceholders(len(columns)))
+		_, err = dst.Exec(sql, ss...)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func copyData(source *goose.DBConf, db, env string) {
 	targetConf, err := goose.NewDBConf(db, env, "")
 	logger.LogIf(err)
@@ -68,42 +105,12 @@ func copyData(source *goose.DBConf, db, env string) {
 	sDB, err := gorm.Open(source.Driver.Name, source.Driver.OpenStr)
 	sDB.SingularTable(true)
 	logger.LogIf(err)
-	// author
-	var authors []Author
-	logger.LogIf(sDB.Find(&authors).Error)
-	for _, a := range authors {
-		logger.LogIf(tDB.Create(&a).Error)
-	}
-	// post
-	var posts []EntryTable
-	logger.LogIf(sDB.Find(&posts).Error)
-	for _, p := range posts {
-		logger.LogIf(tDB.Create(&p).Error)
-	}
-	// commenter
-	var commenters []CommenterTable
-	logger.LogIf(sDB.Find(&commenters).Error)
-	for _, c := range commenters {
-		logger.LogIf(tDB.Create(&c).Error)
-	}
-	// comment
-	var comments []CommentTable
-	logger.LogIf(sDB.Find(&comments).Error)
-	for _, c := range comments {
-		logger.LogIf(tDB.Create(&c).Error)
-	}
-	// tag
-	var tags []Tag
-	logger.LogIf(sDB.Find(&tags).Error)
-	for _, t := range tags {
-		logger.LogIf(tDB.Create(&t).Error)
-	}
-	// tagmap
-	var tagmaps []TagMap
-	logger.LogIf(sDB.Find(&tagmaps).Error)
-	for _, tm := range tagmaps {
-		logger.LogIf(tDB.Create(&tm).Error)
-	}
+	logger.LogIf(copyTable(sDB.DB(), tDB.DB(), "author"))
+	logger.LogIf(copyTable(sDB.DB(), tDB.DB(), "post"))
+	logger.LogIf(copyTable(sDB.DB(), tDB.DB(), "commenter"))
+	logger.LogIf(copyTable(sDB.DB(), tDB.DB(), "comment"))
+	logger.LogIf(copyTable(sDB.DB(), tDB.DB(), "tag"))
+	logger.LogIf(copyTable(sDB.DB(), tDB.DB(), "tagmap"))
 	tDB.Close()
 }
 
