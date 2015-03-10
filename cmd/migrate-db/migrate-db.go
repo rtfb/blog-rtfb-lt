@@ -55,6 +55,12 @@ func migrateToTarget(db, env string, target int64) {
 	logger.LogIf(err)
 }
 
+func clearTable(db *sql.DB, table string) error {
+	fmt.Printf("Clearing table %v...\n", table)
+	_, err := db.Exec("delete from " + table)
+	return err
+}
+
 func makePlaceholders(num int) string {
 	items := make([]string, 0)
 	for i := 0; i < num; i++ {
@@ -64,7 +70,7 @@ func makePlaceholders(num int) string {
 }
 
 func copyTable(src, dst *sql.DB, table string) error {
-	fmt.Printf("Copying table %v...", table)
+	fmt.Printf("Copying table %v...\n", table)
 	rows, err := src.Query("select * from " + table)
 	if err != nil {
 		return err
@@ -96,12 +102,12 @@ func copyData(source *goose.DBConf, db, env string) {
 	tDB, err := gorm.Open(targetConf.Driver.Name, targetConf.Driver.OpenStr)
 	logger.LogIf(err)
 	tDB.SingularTable(true)
-	logger.LogIf(tDB.Delete(EntryTable{}).Error)
-	logger.LogIf(tDB.Delete(TagMap{}).Error)
-	logger.LogIf(tDB.Delete(Tag{}).Error)
-	logger.LogIf(tDB.Delete(CommentTable{}).Error)
-	logger.LogIf(tDB.Delete(CommenterTable{}).Error)
-	logger.LogIf(tDB.Delete(Author{}).Error)
+	logger.LogIf(clearTable(tDB.DB(), "comment"))
+	logger.LogIf(clearTable(tDB.DB(), "commenter"))
+	logger.LogIf(clearTable(tDB.DB(), "post"))
+	logger.LogIf(clearTable(tDB.DB(), "tag"))
+	logger.LogIf(clearTable(tDB.DB(), "tagmap"))
+	logger.LogIf(clearTable(tDB.DB(), "author"))
 	sDB, err := gorm.Open(source.Driver.Name, source.Driver.OpenStr)
 	sDB.SingularTable(true)
 	logger.LogIf(err)
