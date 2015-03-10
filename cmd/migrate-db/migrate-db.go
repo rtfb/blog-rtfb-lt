@@ -7,7 +7,6 @@ import (
 
 	"bitbucket.org/liamstask/goose/lib/goose"
 	"github.com/docopt/docopt-go"
-	"github.com/jinzhu/gorm"
 	"github.com/rtfb/bark"
 )
 
@@ -99,24 +98,22 @@ func copyTable(src, dst *sql.DB, table string) error {
 func copyData(source *goose.DBConf, db, env string) {
 	targetConf, err := goose.NewDBConf(db, env, "")
 	logger.LogIf(err)
-	tDB, err := gorm.Open(targetConf.Driver.Name, targetConf.Driver.OpenStr)
+	tDB, err := sql.Open(targetConf.Driver.Name, targetConf.Driver.OpenStr)
 	logger.LogIf(err)
-	tDB.SingularTable(true)
-	logger.LogIf(clearTable(tDB.DB(), "comment"))
-	logger.LogIf(clearTable(tDB.DB(), "commenter"))
-	logger.LogIf(clearTable(tDB.DB(), "post"))
-	logger.LogIf(clearTable(tDB.DB(), "tag"))
-	logger.LogIf(clearTable(tDB.DB(), "tagmap"))
-	logger.LogIf(clearTable(tDB.DB(), "author"))
-	sDB, err := gorm.Open(source.Driver.Name, source.Driver.OpenStr)
-	sDB.SingularTable(true)
+	logger.LogIf(clearTable(tDB, "comment"))
+	logger.LogIf(clearTable(tDB, "commenter"))
+	logger.LogIf(clearTable(tDB, "post"))
+	logger.LogIf(clearTable(tDB, "tag"))
+	logger.LogIf(clearTable(tDB, "tagmap"))
+	logger.LogIf(clearTable(tDB, "author"))
+	sDB, err := sql.Open(source.Driver.Name, source.Driver.OpenStr)
 	logger.LogIf(err)
-	logger.LogIf(copyTable(sDB.DB(), tDB.DB(), "author"))
-	logger.LogIf(copyTable(sDB.DB(), tDB.DB(), "post"))
-	logger.LogIf(copyTable(sDB.DB(), tDB.DB(), "commenter"))
-	logger.LogIf(copyTable(sDB.DB(), tDB.DB(), "comment"))
-	logger.LogIf(copyTable(sDB.DB(), tDB.DB(), "tag"))
-	logger.LogIf(copyTable(sDB.DB(), tDB.DB(), "tagmap"))
+	logger.LogIf(copyTable(sDB, tDB, "author"))
+	logger.LogIf(copyTable(sDB, tDB, "post"))
+	logger.LogIf(copyTable(sDB, tDB, "commenter"))
+	logger.LogIf(copyTable(sDB, tDB, "comment"))
+	logger.LogIf(copyTable(sDB, tDB, "tag"))
+	logger.LogIf(copyTable(sDB, tDB, "tagmap"))
 	tDB.Close()
 }
 
