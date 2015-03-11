@@ -20,10 +20,11 @@ package=./package
 cp -r $rtfblog_proj/build $package
 rm $package/server.conf
 rm $package/server.log
-cp $GOPATH/bin/goose $package
 cp -r $rtfblog_proj/db $package
 cp ./stuff/images/* $package/static/
 cp ./testdata/rtfblog-dump.sql $package/rtfblog-dump.sql
+go build ./cmd/migrate-db/
+cp ./migrate-db $package
 tar czvf package.tar.gz ./package
 rm -rf $package
 
@@ -36,7 +37,5 @@ ssh rtfb@rtfb.lt "kill $pid"
 ssh rtfb@rtfb.lt "/home/rtfb/unpack.sh package$suffix"
 ssh rtfb@rtfb.lt "rm $full_path/db/dbconf.yml"
 ssh rtfb@rtfb.lt "ln -s /home/rtfb/rtfblog-dbconf.yml $full_path/db/dbconf.yml"
-# TODO: call 'migrate-db' here instead of 'goose'. Like this:
-#ssh rtfb@rtfb.lt "$full_path/migrate-db $goose_env"
-ssh rtfb@rtfb.lt "cd $full_path; ./goose -env=$goose_env up"
+ssh rtfb@rtfb.lt "$full_path/migrate-db --env=$goose_env"
 ssh rtfb@rtfb.lt "nohup $full_path/rtfblog </dev/null 1>&2&> $full_path/nohup.log &"
