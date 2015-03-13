@@ -123,7 +123,6 @@ func main() {
 		panic("Can't docopt.Parse!")
 	}
 	fmt.Println(args)
-	fmt.Printf("db=%q, env=%q\n", args["--db"], args["--env"])
 	db := args["--db"].(string)
 	env := args["--env"].(string)
 	srcenv := args["--srcenv"].(string)
