@@ -19,11 +19,11 @@ Usage:
   migrate-db --version
 
 Options:
-  --db=<dir>     Path to DB specifier dir for goose [default: db].
-  --env=<env>    Environment to migrate [default: staging].
-  --srcenv=<env> Environment to copy data from [default: production].
-  -h --help      Show this screen.
-  --version      Show version.`
+  --db=<dir>      Path to DB specifier dir for goose [default: db].
+  --env=<env>     Environment to migrate [default: staging].
+  --srcenv=<env>  Environment to copy data from [default: production].
+  -h --help       Show this screen.
+  --version       Show version.`
 )
 
 var (
