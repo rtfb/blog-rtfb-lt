@@ -4,7 +4,6 @@ rtfblog_proj="../rtfblog"
 
 killall rtfblog
 pushd $rtfblog_proj
-rm src/version.go
 make all
 popd
 
