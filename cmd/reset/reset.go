@@ -5,9 +5,26 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/docopt/docopt-go"
 	"github.com/howeyc/gopass"
 	_ "github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
+)
+
+const (
+	usage = `passwd-reset. A helper to reset password for rtfblog.
+
+Usage:
+  passwd-reset <env var>
+  passwd-reset -h | --help
+  passwd-reset --version
+
+Options:
+  It takes a single argument -- a name of environment variable to look up a
+  connection string.
+  -h --help     Show this screen.
+  --version     Show version.`
+	defaultCookieSecret = "dont-forget-to-change-me"
 )
 
 func EncryptBcrypt(passwd string) (hash string, err error) {
@@ -39,7 +56,13 @@ func updateAuthorRow(connString, uname, passwd, fullname, email, www string) {
 }
 
 func main() {
-	dbFile := os.Getenv("RTFBLOG_DB_TEST_URL")
+	args, err := docopt.Parse(usage, nil, true, "1.0", false)
+	if err != nil {
+		panic("Can't docopt.Parse!")
+	}
+	envVar := args["<env var>"].(string)
+	fmt.Printf("Looking up connstr in $%s...\n", envVar)
+	dbFile := os.Getenv(envVar)
 	uname := "rtfb"
 	fmt.Printf("New password: ")
 	passwd := gopass.GetPasswd()
