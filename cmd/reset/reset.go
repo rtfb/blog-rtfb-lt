@@ -23,8 +23,6 @@ func updateAuthorRow(connString, uname, passwd, fullname, email, www string) {
 		return
 	}
 	defer db.Close()
-	//stmt, _ := db.Prepare(`insert into author(id, disp_name, passwd, full_name, email, www)
-	//values($1, $2, $3, $4, $5, $6)`)
 	stmt, _ := db.Prepare(`update author set
 	disp_name=$1, passwd=$2, full_name=$3, email=$4, www=$5
 	where id=1`)
