@@ -24,7 +24,6 @@ Options:
   connection string.
   -h --help     Show this screen.
   --version     Show version.`
-	defaultCookieSecret = "dont-forget-to-change-me"
 )
 
 func EncryptBcrypt(passwd string) (hash string, err error) {
