@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"os"
 	"strings"
 
 	"bitbucket.org/liamstask/goose/lib/goose"
@@ -126,6 +127,11 @@ func main() {
 	db := args["--db"].(string)
 	env := args["--env"].(string)
 	srcenv := args["--srcenv"].(string)
+	dbConf := "db/dbconf.yml"
+	if _, err := os.Stat(dbConf); os.IsNotExist(err) {
+		fmt.Printf("Can't find Goose dbconf: %q, exiting.\n", dbConf)
+		return
+	}
 	logger = bark.Create()
 	if env == "production" {
 		migrateToLatest(db, env)
