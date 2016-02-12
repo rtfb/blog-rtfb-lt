@@ -6,8 +6,8 @@ import (
 	"os"
 
 	"github.com/docopt/docopt-go"
-	"github.com/howeyc/gopass"
 	_ "github.com/lib/pq"
+	"github.com/rtfb/gopass"
 	"golang.org/x/crypto/bcrypt"
 )
 
