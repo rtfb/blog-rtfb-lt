@@ -64,9 +64,15 @@ func main() {
 	dbFile := os.Getenv(envVar)
 	uname := "rtfb"
 	fmt.Printf("New password: ")
-	passwd := gopass.GetPasswd()
+	passwd, err := gopass.GetPasswd()
+	if err != nil {
+		panic(err.Error())
+	}
 	fmt.Printf("Confirm: ")
-	passwd2 := gopass.GetPasswd()
+	passwd2, err := gopass.GetPasswd()
+	if err != nil {
+		panic(err.Error())
+	}
 	if string(passwd2) != string(passwd) {
 		panic("Passwords do not match")
 	}
