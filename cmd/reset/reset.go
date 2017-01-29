@@ -7,6 +7,7 @@ import (
 
 	"github.com/docopt/docopt-go"
 	_ "github.com/lib/pq"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/rtfb/gopass"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -15,7 +16,7 @@ const (
 	usage = `passwd-reset. A helper to reset password for rtfblog.
 
 Usage:
-  passwd-reset <env var>
+  passwd-reset <env var or sqlite db file>
   passwd-reset -h | --help
   passwd-reset --version
 
@@ -32,8 +33,8 @@ func EncryptBcrypt(passwd string) (hash string, err error) {
 	return
 }
 
-func updateAuthorRow(connString, uname, passwd, fullname, email, www string) {
-	db, err := sql.Open("postgres", connString)
+func updateAuthorRow(dialect, connString, uname, passwd, fullname, email, www string) {
+	db, err := sql.Open(dialect, connString)
 	if err != nil {
 		fmt.Println(err.Error())
 		return
@@ -54,14 +55,26 @@ func updateAuthorRow(connString, uname, passwd, fullname, email, www string) {
 	stmt.Exec(uname, passwdHash, fullname, email, www)
 }
 
+func dbConn(param string) (dialect, conn string) {
+	envVar := os.Getenv(param)
+	if envVar != "" {
+		dialect = "postgres"
+		fmt.Printf("%s seems to be an env var, assuming %s\n", param, dialect)
+		return dialect, envVar
+	}
+	dialect = "sqlite3"
+	fmt.Printf("%s seems to be a file, assuming %s\n", param, dialect)
+	return dialect, param
+}
+
 func main() {
 	args, err := docopt.Parse(usage, nil, true, "1.0", false)
 	if err != nil {
 		panic("Can't docopt.Parse!")
 	}
-	envVar := args["<env var>"].(string)
-	fmt.Printf("Looking up connstr in $%s...\n", envVar)
-	dbFile := os.Getenv(envVar)
+	param := args["<env var or sqlite db file>"].(string)
+	dialect, conn := dbConn(param)
+	fmt.Printf("Connecting to %s@%s...\n", dialect, conn)
 	uname := "rtfb"
 	fmt.Printf("New password: ")
 	passwd, err := gopass.GetPasswd()
@@ -79,5 +92,5 @@ func main() {
 	fullname := "Vytautas Šaltenis"
 	email := "vytas@rtfb.lt"
 	www := "http://rtfb.lt/"
-	updateAuthorRow(dbFile, uname, string(passwd), fullname, email, www)
+	updateAuthorRow(dialect, conn, uname, string(passwd), fullname, email, www)
 }
