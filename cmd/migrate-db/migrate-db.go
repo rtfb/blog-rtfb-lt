@@ -4,11 +4,13 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"path"
 	"strings"
 
-	"bitbucket.org/liamstask/goose/lib/goose"
 	"github.com/docopt/docopt-go"
+	_ "github.com/lib/pq"
 	"github.com/rtfb/bark"
+	"github.com/steinbacher/goose"
 )
 
 const (
@@ -40,7 +42,7 @@ func Capitalize(s string) string {
 }
 
 func migrateToLatest(db, env string) {
-	dbconf, err := goose.NewDBConf(db, env, "")
+	dbconf, err := goose.NewDBConf(db, env)
 	logger.LogIf(err)
 	target, err := goose.GetMostRecentDBVersion(dbconf.MigrationsDir)
 	logger.LogIf(err)
@@ -49,7 +51,7 @@ func migrateToLatest(db, env string) {
 }
 
 func migrateToTarget(db, env string, target int64) {
-	dbconf, err := goose.NewDBConf(db, env, "")
+	dbconf, err := goose.NewDBConf(db, env)
 	logger.LogIf(err)
 	err = goose.RunMigrations(dbconf, dbconf.MigrationsDir, target)
 	logger.LogIf(err)
@@ -97,9 +99,9 @@ func copyTable(src, dst *sql.DB, table string) error {
 }
 
 func copyData(source *goose.DBConf, db, env string) {
-	targetConf, err := goose.NewDBConf(db, env, "")
+	targetConf, err := goose.NewDBConf(db, env)
 	logger.LogIf(err)
-	tDB, err := sql.Open(targetConf.Driver.Name, targetConf.Driver.OpenStr)
+	tDB, err := sql.Open(targetConf.Driver.Name, targetConf.Driver.DSN)
 	logger.LogIf(err)
 	logger.LogIf(clearTable(tDB, "comment"))
 	logger.LogIf(clearTable(tDB, "commenter"))
@@ -107,7 +109,7 @@ func copyData(source *goose.DBConf, db, env string) {
 	logger.LogIf(clearTable(tDB, "tag"))
 	logger.LogIf(clearTable(tDB, "tagmap"))
 	logger.LogIf(clearTable(tDB, "author"))
-	sDB, err := sql.Open(source.Driver.Name, source.Driver.OpenStr)
+	sDB, err := sql.Open(source.Driver.Name, source.Driver.DSN)
 	logger.LogIf(err)
 	logger.LogIf(copyTable(sDB, tDB, "author"))
 	logger.LogIf(copyTable(sDB, tDB, "post"))
@@ -127,7 +129,7 @@ func main() {
 	db := args["--db"].(string)
 	env := args["--env"].(string)
 	srcenv := args["--srcenv"].(string)
-	dbConf := "db/dbconf.yml"
+	dbConf := path.Join(db, "dbconf.yml")
 	if _, err := os.Stat(dbConf); os.IsNotExist(err) {
 		fmt.Printf("Can't find Goose dbconf: %q, exiting.\n", dbConf)
 		return
@@ -137,7 +139,7 @@ func main() {
 		migrateToLatest(db, env)
 		return
 	} else {
-		prodConf, err := goose.NewDBConf(db, srcenv, "")
+		prodConf, err := goose.NewDBConf(db, srcenv)
 		logger.LogIf(err)
 		target, err := goose.GetDBVersion(prodConf)
 		logger.LogIf(err)
