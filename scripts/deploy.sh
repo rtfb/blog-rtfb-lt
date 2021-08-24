@@ -25,8 +25,10 @@ rm $package/server.log
 cp -r $rtfblog_proj/db $package
 cp ./stuff/images/* $package/static/
 cp ./testdata/rtfblog-dump.sql $package/rtfblog-dump.sql
-go build ./cmd/migrate-db/
-cp ./migrate-db $package
+cd cmd/migrate-db
+go build
+cd ../..
+cp cmd/migrate-db/migrate-db $package
 tar czvf package.tar.gz ./package
 rm -rf $package
 

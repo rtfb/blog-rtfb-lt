@@ -1,4 +1,4 @@
-migrate-db
+/cmd/migrate-db/migrate-db
 reset
 stuff/
 testdata/
