@@ -1,4 +1,4 @@
 /cmd/migrate-db/migrate-db
-reset
+/cmd/reset/passwd-reset
 stuff/
 testdata/
