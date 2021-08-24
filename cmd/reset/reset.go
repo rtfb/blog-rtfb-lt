@@ -91,6 +91,6 @@ func main() {
 	}
 	fullname := "Vytautas Šaltenis"
 	email := "vytas@rtfb.lt"
-	www := "http://rtfb.lt/"
+	www := "https://rtfb.lt/"
 	updateAuthorRow(dialect, conn, uname, string(passwd), fullname, email, www)
 }
