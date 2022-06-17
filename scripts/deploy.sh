@@ -32,15 +32,17 @@ cp cmd/migrate-db/migrate-db $package
 tar czvf package.tar.gz ./package
 rm -rf $package
 
-scp -q scripts/unpack.sh rtfb@rtfb.lt:/home/rtfb/unpack.sh
-scp -q package.tar.gz rtfb@rtfb.lt:/home/rtfb/package.tar.gz
+remote=rtfb@rtfb.lt
+
+scp -q scripts/unpack.sh $remote:/home/rtfb/unpack.sh
+scp -q package.tar.gz $remote:/home/rtfb/package.tar.gz
 rm ./package.tar.gz
 full_path=/home/rtfb/package$suffix
-ssh rtfb@rtfb.lt "service rtfblog stop"
-ssh rtfb@rtfb.lt "/home/rtfb/unpack.sh package$suffix"
-ssh rtfb@rtfb.lt "rm $full_path/db/pg/dbconf.yml"
-ssh rtfb@rtfb.lt "ln -s /home/rtfb/rtfblog-dbconf.yml $full_path/db/dbconf.yml"
-ssh rtfb@rtfb.lt "$full_path/migrate-db --db=$full_path/db --env=$goose_env"
-ssh rtfb@rtfb.lt "service rtfblog start"
+ssh $remote "service rtfblog stop"
+ssh $remote "/home/rtfb/unpack.sh package$suffix"
+ssh $remote "rm $full_path/db/pg/dbconf.yml"
+ssh $remote "ln -s /home/rtfb/rtfblog-dbconf.yml $full_path/db/dbconf.yml"
+ssh $remote "$full_path/migrate-db --db=$full_path/db --env=$goose_env"
+ssh $remote "service rtfblog start"
 
 echo "$env deployed."
