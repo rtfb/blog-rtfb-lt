@@ -3,14 +3,18 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 	"strings"
 
 	"github.com/docopt/docopt-go"
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
 	"github.com/rtfb/bark"
-	"github.com/steinbacher/goose"
+	"gopkg.in/yaml.v2"
 )
 
 const (
@@ -22,7 +26,7 @@ Usage:
   migrate-db --version
 
 Options:
-  --db=<dir>      Path to DB specifier dir for goose [default: db].
+  --db=<dir>      Path to a dir where dbconf.yml lives [default: db].
   --env=<env>     Environment to migrate [default: staging].
   --srcenv=<env>  Environment to copy data from [default: production].
   -h --help       Show this screen.
@@ -33,28 +37,15 @@ var (
 	logger *bark.Logger
 )
 
-func L10n(x string, y int) string {
-	return ""
+type dbConfTopLevel struct {
+	path string
+	envs map[string]EnvDBConf
 }
 
-func Capitalize(s string) string {
-	return ""
-}
-
-func migrateToLatest(db, env string) {
-	dbconf, err := goose.NewDBConf(db, env)
-	logger.LogIf(err)
-	target, err := goose.GetMostRecentDBVersion(dbconf.MigrationsDir)
-	logger.LogIf(err)
-	err = goose.RunMigrations(dbconf, dbconf.MigrationsDir, target)
-	logger.LogIf(err)
-}
-
-func migrateToTarget(db, env string, target int64) {
-	dbconf, err := goose.NewDBConf(db, env)
-	logger.LogIf(err)
-	err = goose.RunMigrations(dbconf, dbconf.MigrationsDir, target)
-	logger.LogIf(err)
+type EnvDBConf struct {
+	Driver        string `yaml:"driver"`
+	DSN           string `yaml:"dsn"`
+	MigrationsDir string `yaml:"migrationsDir"`
 }
 
 func clearTable(db *sql.DB, table string) error {
@@ -98,10 +89,8 @@ func copyTable(src, dst *sql.DB, table string) error {
 	return nil
 }
 
-func copyData(source *goose.DBConf, db, env string) {
-	targetConf, err := goose.NewDBConf(db, env)
-	logger.LogIf(err)
-	tDB, err := sql.Open(targetConf.Driver.Name, targetConf.Driver.DSN)
+func copyData(source, target EnvDBConf) {
+	tDB, err := sql.Open(target.Driver, target.DSN)
 	logger.LogIf(err)
 	logger.LogIf(clearTable(tDB, "comment"))
 	logger.LogIf(clearTable(tDB, "commenter"))
@@ -109,7 +98,7 @@ func copyData(source *goose.DBConf, db, env string) {
 	logger.LogIf(clearTable(tDB, "tag"))
 	logger.LogIf(clearTable(tDB, "tagmap"))
 	logger.LogIf(clearTable(tDB, "author"))
-	sDB, err := sql.Open(source.Driver.Name, source.Driver.DSN)
+	sDB, err := sql.Open(source.Driver, source.DSN)
 	logger.LogIf(err)
 	logger.LogIf(copyTable(sDB, tDB, "author"))
 	logger.LogIf(copyTable(sDB, tDB, "post"))
@@ -120,31 +109,111 @@ func copyData(source *goose.DBConf, db, env string) {
 	tDB.Close()
 }
 
-func main() {
-	args, err := docopt.Parse(usage, nil, true, "0.1", false)
+func gormConnStringToPostgresURL(conn string) (string, error) {
+	params := strings.Split(conn, " ")
+	if len(params) != 3 {
+		return "", fmt.Errorf("bad conn string, expect 'user=u dbname=n password=p'")
+	}
+	kvs := map[string]string{}
+	for i, p := range params {
+		kv := strings.Split(p, "=")
+		if len(kv) != 2 {
+			return "", fmt.Errorf("bad %dth kv in conn string, expect key=value", i)
+		}
+		kvs[kv[0]] = kv[1]
+	}
+	return fmt.Sprintf("postgres://%s:%s@localhost:5432/%s",
+		kvs["user"],
+		kvs["password"],
+		kvs["dbname"],
+	), nil
+}
+
+func readDBConfYAML(location string) (dbConfTopLevel, error) {
+	conf := dbConfTopLevel{
+		path: location,
+	}
+	dbConf := path.Join(location, "dbconf.yml")
+	if _, err := os.Stat(dbConf); os.IsNotExist(err) {
+		return conf, fmt.Errorf("find Goose dbconf: %q", dbConf)
+	}
+	confBytes, err := ioutil.ReadFile(dbConf)
 	if err != nil {
-		panic("Can't docopt.Parse!")
+		return conf, fmt.Errorf("read %s: %v", dbConf, err)
+	}
+	err = yaml.Unmarshal(confBytes, &conf.envs)
+	if err != nil {
+		return conf, fmt.Errorf("parse %s: %v", dbConf, err)
+	}
+	return conf, nil
+}
+
+func createForEnv(conf dbConfTopLevel, env string) (*migrate.Migrate, error) {
+	envConfig, ok := conf.envs[env]
+	if !ok {
+		return nil, fmt.Errorf("config does not contain environment %s", env)
+	}
+	if envConfig.Driver != "postgres" {
+		return nil, fmt.Errorf("unsupported driver '%s'. Only 'postgres' is supported", envConfig.Driver)
+	}
+	source := "file://" + path.Join(conf.path, envConfig.MigrationsDir, "migrations")
+	pgURL, err := gormConnStringToPostgresURL(envConfig.DSN)
+	if err != nil {
+		return nil, fmt.Errorf("parse conn string: %v", err)
+	}
+	return migrate.New(source, pgURL)
+}
+
+func doDataMigration(
+	conf dbConfTopLevel,
+	srcenv string,
+	tgtenv string,
+	targetM *migrate.Migrate,
+) error {
+	srcM, err := createForEnv(conf, srcenv)
+	if err != nil {
+		return fmt.Errorf("create migration object: %v", err)
+	}
+	srcVersion, dirty, err := srcM.Version()
+	if err != nil {
+		return fmt.Errorf("get source env version: %v", err)
+	}
+	if dirty {
+		return fmt.Errorf("source env dirty")
+	}
+	targetM.Migrate(srcVersion)
+	copyData(conf.envs[srcenv], conf.envs[tgtenv])
+	targetM.Up()
+	return nil
+}
+
+func main() {
+	args, err := docopt.Parse(usage, nil, true, "0.2", false)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Can't docopt.Parse!")
+		return
 	}
 	fmt.Println(args)
 	db := args["--db"].(string)
 	env := args["--env"].(string)
 	srcenv := args["--srcenv"].(string)
-	dbConf := path.Join(db, "dbconf.yml")
-	if _, err := os.Stat(dbConf); os.IsNotExist(err) {
-		fmt.Printf("Can't find Goose dbconf: %q, exiting.\n", dbConf)
+	logger = bark.Create()
+	conf, err := readDBConfYAML(db)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to load config: %v\n", err)
 		return
 	}
-	logger = bark.Create()
-	if env == "production" {
-		migrateToLatest(db, env)
+	m, err := createForEnv(conf, env)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create target migration object: %v\n", err)
 		return
+	}
+	if env == "production" {
+		m.Up()
 	} else {
-		prodConf, err := goose.NewDBConf(db, srcenv)
-		logger.LogIf(err)
-		target, err := goose.GetDBVersion(prodConf)
-		logger.LogIf(err)
-		migrateToTarget(db, env, target)
-		copyData(prodConf, db, env)
-		migrateToLatest(db, env)
+		err := doDataMigration(conf, srcenv, env, m)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to do data migration %s->%s: %v\n", srcenv, env, err)
+		}
 	}
 }
