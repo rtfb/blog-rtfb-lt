@@ -2,3 +2,6 @@
 /cmd/reset/passwd-reset
 stuff/
 testdata/
+/rtfblog.tar
+/rtfblog-staging.tar
+/package

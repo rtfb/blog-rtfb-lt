@@ -28,21 +28,20 @@ cp ./testdata/rtfblog-dump.sql $package/rtfblog-dump.sql
 cd cmd/migrate-db
 go build
 cd ../..
-cp cmd/migrate-db/migrate-db $package
-tar czvf package.tar.gz ./package
-rm -rf $package
 
-remote=rtfb@rtfb.lt
+cd cmd/reset
+go build
+cd ../..
 
-scp -q scripts/unpack.sh $remote:/home/rtfb/unpack.sh
-scp -q package.tar.gz $remote:/home/rtfb/package.tar.gz
-rm ./package.tar.gz
-full_path=/home/rtfb/package$suffix
-ssh $remote "service rtfblog stop"
-ssh $remote "/home/rtfb/unpack.sh package$suffix"
-ssh $remote "rm $full_path/db/pg/dbconf.yml"
-ssh $remote "ln -s /home/rtfb/rtfblog-dbconf.yml $full_path/db/dbconf.yml"
-ssh $remote "$full_path/migrate-db --db=$full_path/db --env=$goose_env"
-ssh $remote "service rtfblog start"
+# remote=rtfb@rtfb.lt
+remote=rtfb@kertinis.lt
+
+SUFFIX=$suffix make dbuild
+SUFFIX=$suffix make dsave
+
+# scp -q rtfblog$suffix.tar $remote:/home/rtfb/
+# ssh $remote "service rtfblog$suffix stop"
+# ssh $remote "docker load -i /home/rtfb/rtfblog$suffix.tar"
+# ssh $remote "service rtfblog$suffix start"
 
 echo "$env deployed."
