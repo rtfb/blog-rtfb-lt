@@ -29,3 +29,7 @@ dshell:
 	docker run --entrypoint /bin/bash -it --name ${APPNAME} --rm \
     --mount type=bind,source="$(shell pwd)",target=/host \
     --net=host ${LATEST}
+
+.PHONY: dclean
+dclean:
+	docker image rm ${LATEST}
