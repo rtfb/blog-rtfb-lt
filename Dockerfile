@@ -1,10 +1,9 @@
-FROM alpine:latest
+FROM ubuntu:22.04
 
-RUN apk update && apk add \
-    bash \
+RUN apt-get update && apt-get install -y \
     curl \
-    gcompat \
     git \
+    sudo \
     vim \
     wget
 
