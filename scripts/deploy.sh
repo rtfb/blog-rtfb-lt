@@ -15,7 +15,8 @@ rtfblog_proj="../rtfblog"
 
 killall rtfblog
 pushd $rtfblog_proj
-make all
+rm -r build
+make drun
 popd
 
 package=./package
