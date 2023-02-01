@@ -19,7 +19,8 @@ make all
 popd
 
 package=./package
-cp -r $rtfblog_proj/build $package
+mkdir -p $package
+cp -r $rtfblog_proj/build/* $package
 rm $package/server.conf
 rm $package/server.log
 cp -r $rtfblog_proj/db $package
@@ -39,9 +40,9 @@ remote=rtfb@kertinis.lt
 SUFFIX=$suffix make dbuild
 SUFFIX=$suffix make dsave
 
-# scp -q rtfblog$suffix.tar $remote:/home/rtfb/
-# ssh $remote "service rtfblog$suffix stop"
-# ssh $remote "docker load -i /home/rtfb/rtfblog$suffix.tar"
-# ssh $remote "service rtfblog$suffix start"
+scp -q rtfblog$suffix.tar $remote:/home/rtfb/
+ssh $remote "service rtfblog$suffix stop"
+ssh $remote "docker load -i /home/rtfb/rtfblog$suffix.tar"
+ssh $remote "service rtfblog$suffix start"
 
 echo "$env deployed."
