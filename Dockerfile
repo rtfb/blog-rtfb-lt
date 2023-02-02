@@ -12,6 +12,7 @@ RUN mkdir -p /host
 ADD cmd/migrate-db/migrate-db /app/migrate-db
 ADD cmd/reset/passwd-reset /app/passwd-reset
 ADD package /app/package
+RUN ln -s /host/rtfblog-dbconf.yml /app/package/db/dbconf.yml
 
 WORKDIR /app
 
