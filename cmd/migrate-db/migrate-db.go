@@ -176,7 +176,9 @@ func doDataMigration(
 	}
 	srcVersion, dirty, err := srcM.Version()
 	if err != nil {
-		return fmt.Errorf("get source env version: %v", err)
+		if err != migrate.ErrNilVersion { // allow source to be of unknown version
+			return fmt.Errorf("get source env version: %v", err)
+		}
 	}
 	if dirty {
 		return fmt.Errorf("source env dirty")
