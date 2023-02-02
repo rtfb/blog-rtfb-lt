@@ -42,8 +42,6 @@ SUFFIX=$suffix make dbuild
 SUFFIX=$suffix make dsave
 
 scp -q rtfblog$suffix.tar $remote:/home/rtfb/
-ssh $remote "service rtfblog$suffix stop"
 ssh $remote "docker load -i /home/rtfb/rtfblog$suffix.tar"
-ssh $remote "service rtfblog$suffix start"
 
-echo "$env deployed."
+echo "$env deployed. Restart the service on the host to take effect."
