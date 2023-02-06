@@ -41,7 +41,7 @@ remote=rtfb@kertinis.lt
 SUFFIX=$suffix make dbuild
 SUFFIX=$suffix make dsave
 
-scp -q rtfblog$suffix.tar $remote:/home/rtfb/
+scp rtfblog$suffix.tar $remote:/home/rtfb/
 ssh $remote "docker load -i /home/rtfb/rtfblog$suffix.tar"
 
 echo "$env deployed. Restart the service on the host to take effect."
