@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/docopt/docopt-go"
@@ -18,7 +19,8 @@ import (
 )
 
 const (
-	usage = `migrate-db. A tool to migrate production and staging DBs for rtfblog.
+	version = "0.3"
+	usage   = `migrate-db. A tool to migrate production and staging DBs for rtfblog.
 
 Usage:
   migrate-db [--db=<db>] [--env=<env>] [--srcenv=<env>]
@@ -55,15 +57,20 @@ func clearTable(db *sql.DB, table string) error {
 }
 
 func makePlaceholders(num int) string {
-	items := make([]string, 0)
+	var b strings.Builder
+	b.Grow(4 * num)
 	for i := 0; i < num; i++ {
-		items = append(items, fmt.Sprintf("$%d", i+1))
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteRune('$')
+		b.WriteString(strconv.Itoa(i + 1))
 	}
-	return strings.Join(items, ", ")
+	return b.String()
 }
 
 func copyTable(src, dst *sql.DB, table string) error {
-	fmt.Printf("Copying table %v...\n", table)
+	fmt.Printf("Copying table %s...\n", table)
 	rows, err := src.Query("select * from " + table)
 	if err != nil {
 		return err
@@ -73,9 +80,9 @@ func copyTable(src, dst *sql.DB, table string) error {
 		return err
 	}
 	for rows.Next() {
-		ss := make([]interface{}, 0)
+		ss := make([]any, 0, len(columns))
 		for i := 0; i < len(columns); i++ {
-			var x interface{}
+			var x any
 			ss = append(ss, &x)
 		}
 		rows.Scan(ss...)
@@ -85,6 +92,17 @@ func copyTable(src, dst *sql.DB, table string) error {
 		if err != nil {
 			return err
 		}
+	}
+	seq := table + "_id_seq"
+	fmt.Printf("Update ID sequence %s for table %s...\n", seq, table)
+	updateIDSeq := fmt.Sprintf("select setval('%s', (select max(id) from %s))",
+		seq,
+		table,
+	)
+	fmt.Println(updateIDSeq)
+	_, err = dst.Exec(updateIDSeq)
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -183,6 +201,7 @@ func doDataMigration(
 	if dirty {
 		return fmt.Errorf("source env dirty")
 	}
+	fmt.Printf("migrating env %s to version %d\n", tgtenv, srcVersion)
 	targetM.Migrate(srcVersion)
 	copyData(conf.envs[srcenv], conf.envs[tgtenv])
 	targetM.Up()
@@ -190,7 +209,7 @@ func doDataMigration(
 }
 
 func main() {
-	args, err := docopt.Parse(usage, nil, true, "0.2", false)
+	args, err := docopt.Parse(usage, nil, true, version, false)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Can't docopt.Parse!")
 		return
