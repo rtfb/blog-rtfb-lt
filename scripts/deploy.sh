@@ -1,5 +1,8 @@
 #!/bin/bash
 
+set -e
+set -x
+
 env="staging"
 suffix="-$env"
 
@@ -8,25 +11,28 @@ if [ "$1" == "prod" ]; then
     suffix=""
 fi
 
-goose_env=$env
 echo "Deploying $env..."
 
 rtfblog_proj="../rtfblog"
 
-killall rtfblog
 pushd $rtfblog_proj
-rm -r build
+if [[ -d build ]]; then
+    rm -r build
+fi
 make drun
 popd
 
 package=./package
+rm -r $package
 mkdir -p $package
 cp -r $rtfblog_proj/build/* $package
-rm $package/server.conf
-rm $package/server.log
+if [[ -f $package/server.conf ]]; then
+    rm $package/server.conf
+fi
+if [[ -f $package/server.log ]]; then
+    rm $package/server.log
+fi
 cp -r $rtfblog_proj/db $package
-cp ./stuff/images/* $package/static/
-cp ./testdata/rtfblog-dump.sql $package/rtfblog-dump.sql
 cd cmd/migrate-db
 go build
 cd ../..
