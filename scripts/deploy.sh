@@ -3,6 +3,8 @@
 set -e
 set -x
 
+# remote=rtfb@rtfb.lt
+remote=rtfb@kertinis.lt
 env="staging"
 suffix="-$env"
 
@@ -40,9 +42,6 @@ cd ../..
 cd cmd/reset
 go build
 cd ../..
-
-# remote=rtfb@rtfb.lt
-remote=rtfb@kertinis.lt
 
 SUFFIX=$suffix make dbuild
 SUFFIX=$suffix make dsave
