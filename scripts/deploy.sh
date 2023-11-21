@@ -48,5 +48,6 @@ SUFFIX=$suffix make dsave
 
 scp rtfblog$suffix.tar $remote:/home/rtfb/
 ssh $remote "docker load -i /home/rtfb/rtfblog$suffix.tar"
+ssh $remote "sudo systemctl restart rtfblog.service"
 
-echo "$env deployed. Restart the service on the host to take effect."
+echo "$env deployed."
